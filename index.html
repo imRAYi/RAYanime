@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -35,8 +35,8 @@
             padding: 20px;
             background-image: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             overflow-x: hidden;
-            direction: rtl;
-            text-align: right;
+            /* direction: rtl;  حذف عشان ما يصير انعكاس */
+            text-align: left; /* خلي النص عادي */
         }
 
         .container {
@@ -341,7 +341,7 @@
 
         .tab-nav {
             display: flex;
-            margin-top: 20px;
+            margin-top: 30px; /* moved below add anime card */
             margin-bottom: 10px;
             border-radius: 12px;
             overflow: hidden;
@@ -408,6 +408,7 @@
         }
 
         .search-container {
+            margin-top: 10px; /* تحت القوائم */
             margin-bottom: 30px;
         }
 
@@ -523,11 +524,7 @@
                         <textarea id="description" name="description" rows="3" placeholder="Add note"></textarea>
                     </div>
                     <div id="notes-container">
-                        <div class="form-group note-group">
-                            <label>S1 Note</label>
-                            <input type="text" name="notes[]" placeholder="Add note" />
-                            <button type="button" class="remove-note-btn" title="Remove note">&times;</button>
-                        </div>
+                        <!-- بدون تسميات S1, S2 ... -->
                     </div>
                     <button type="button" id="add-note-btn" class="add-note-btn" title="Add Note">+</button>
 
@@ -556,87 +553,120 @@
             />
         </div>
 
-        <div class="anime-list" id="anime-list">
-            <!-- Anime cards will be rendered here -->
-        </div>
+        <div id="anime-list" class="anime-list"></div>
 
-        <div class="footer">
-            <p class="made-by">Made By RAY</p>
-        </div>
+        <footer class="footer">
+            <p class="made-by">Made by Ray &copy; 2025</p>
+        </footer>
     </div>
 
     <script>
-        const tabs = document.querySelectorAll('.tab-button');
-        const animeList = document.getElementById('anime-list');
-        const animeForm = document.getElementById('anime-form');
-        const addNoteBtn = document.getElementById('add-note-btn');
-        const notesContainer = document.getElementById('notes-container');
-        const searchInput = document.getElementById('search-input');
-        const cancelBtn = animeForm.querySelector('.cancel-btn');
-
+        // Anime data loaded from localStorage or empty array
         let animeData = JSON.parse(localStorage.getItem('animeData')) || [];
         let editingIndex = -1;
 
-        // Helper: Capitalize first letter of each word (for Made By RAY format)
-        function capitalizeWords(str) {
-            return str
-                .split(' ')
-                .map(word => {
-                    if (word.toUpperCase() === 'RAY') return 'RAY'; // keep RAY capital
-                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-                })
-                .join(' ');
-        }
+        const animeForm = document.getElementById('anime-form');
+        const animeList = document.getElementById('anime-list');
+        const tabs = document.querySelectorAll('.tab-button');
+        const searchInput = document.getElementById('search-input');
+        const addNoteBtn = document.getElementById('add-note-btn');
+        const notesContainer = document.getElementById('notes-container');
+        const cancelBtn = animeForm.querySelector('.cancel-btn');
 
-        // Render anime cards based on filter and search
+        // Render anime cards filtered by status and search term
         function renderAnime(filter = 'all', searchTerm = '') {
             animeList.innerHTML = '';
-            let filteredData;
+            let filteredAnime = animeData;
 
-            if (filter === 'all') {
-                filteredData = animeData;
-            } else {
-                filteredData = animeData.filter((anime) => anime.status === filter);
+            if (filter !== 'all') {
+                filteredAnime = animeData.filter(a => a.status === filter);
             }
 
-            if (searchTerm.trim() !== '') {
-                filteredData = filteredData.filter((anime) =>
-                    anime.title.toLowerCase().includes(searchTerm.toLowerCase())
+            if (searchTerm.trim()) {
+                filteredAnime = filteredAnime.filter(a =>
+                    a.title.toLowerCase().includes(searchTerm.toLowerCase())
                 );
             }
 
-            if (filteredData.length === 0) {
-                animeList.innerHTML = `<p class="no-anime">No anime found.</p>`;
+            if (filteredAnime.length === 0) {
+                animeList.innerHTML = '<p class="no-anime">No anime found.</p>';
                 updateCounts();
                 return;
             }
 
-            filteredData.forEach((anime, index) => {
+            filteredAnime.forEach((anime, index) => {
                 const card = document.createElement('div');
                 card.classList.add('anime-card');
 
-                // الصورة تكون من dataUrl لو موجودة أو افتراضية
-                const imgSrc = anime.imageDataUrl || 'https://via.placeholder.com/400x200?text=No+Image';
+                // Anime image
+                const imageDiv = document.createElement('div');
+                imageDiv.classList.add('anime-image');
+                imageDiv.style.backgroundImage = anime.imageDataUrl
+                    ? `url(${anime.imageDataUrl})`
+                    : `url('https://via.placeholder.com/300x200?text=No+Image')`;
 
-                card.innerHTML = `
-                    <div class="anime-image" style="background-image: url('${imgSrc}')">
-                        <div class="anime-status status-${anime.status}">${capitalize(anime.status)}</div>
-                    </div>
-                    <div class="anime-info">
-                        <h3 class="anime-title">${anime.title}</h3>
-                        <p class="anime-details">Rating: ${anime.rating}/10</p>
-                        <p class="anime-description">${anime.description || 'No notes provided.'}</p>
-                        ${
-                            anime.notes && anime.notes.length
-                                ? `<p><strong>Notes:</strong> ${anime.notes.join(', ')}</p>`
-                                : ''
+                // Status label
+                const statusSpan = document.createElement('span');
+                statusSpan.classList.add('anime-status');
+                statusSpan.classList.add(`status-${anime.status}`);
+                statusSpan.textContent = capitalize(anime.status);
+
+                imageDiv.appendChild(statusSpan);
+                card.appendChild(imageDiv);
+
+                // Anime info
+                const infoDiv = document.createElement('div');
+                infoDiv.classList.add('anime-info');
+
+                const titleH3 = document.createElement('h3');
+                titleH3.classList.add('anime-title');
+                titleH3.textContent = anime.title;
+
+                const ratingP = document.createElement('p');
+                ratingP.classList.add('anime-details');
+                ratingP.textContent = `Rating: ${anime.rating}/10`;
+
+                const descriptionP = document.createElement('p');
+                descriptionP.classList.add('anime-description');
+                descriptionP.textContent = anime.description || '-';
+
+                // Notes if any (from additional notes array)
+                const notesUl = document.createElement('ul');
+                if (anime.notes && anime.notes.length > 0) {
+                    anime.notes.forEach(note => {
+                        if (note.trim() !== '') {
+                            const li = document.createElement('li');
+                            li.textContent = note;
+                            notesUl.appendChild(li);
                         }
-                    </div>
-                    <div class="anime-actions">
-                        <button class="action-btn edit-btn" data-index="${index}">Edit</button>
-                        <button class="action-btn delete-btn" data-index="${index}">Delete</button>
-                    </div>
-                `;
+                    });
+                }
+
+                infoDiv.appendChild(titleH3);
+                infoDiv.appendChild(ratingP);
+                infoDiv.appendChild(descriptionP);
+                if (notesUl.children.length > 0) infoDiv.appendChild(notesUl);
+
+                card.appendChild(infoDiv);
+
+                // Action buttons
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('anime-actions');
+
+                const editBtn = document.createElement('button');
+                editBtn.classList.add('action-btn', 'edit-btn');
+                editBtn.dataset.index = index;
+                editBtn.textContent = 'Edit';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.classList.add('action-btn', 'delete-btn');
+                deleteBtn.dataset.index = index;
+                deleteBtn.textContent = 'Delete';
+
+                actionsDiv.appendChild(editBtn);
+                actionsDiv.appendChild(deleteBtn);
+
+                card.appendChild(actionsDiv);
 
                 animeList.appendChild(card);
             });
@@ -667,96 +697,23 @@
             });
         });
 
-        // Add note button
+        // Add note button (adds a new blank textarea in notes container)
         addNoteBtn.addEventListener('click', () => {
-            // Count existing notes with label Sx Note to limit max 10
-            const existingNotes = notesContainer.querySelectorAll('.note-group label');
-            let maxSNum = 0;
-            existingNotes.forEach(label => {
-                const text = label.textContent.trim();
-                const match = text.match(/^S(\d+) Note$/);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    if (num > maxSNum) maxSNum = num;
-                }
-            });
-
-            if (maxSNum >= 10) return; // max reached
-
-            const nextNum = maxSNum + 1;
-
-            const noteGroup = document.createElement('div');
-            noteGroup.classList.add('form-group', 'note-group', 'new-note');
-
-            const label = document.createElement('label');
-            label.textContent = `S${nextNum} Note`;
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'notes[]';
-            input.placeholder = 'Add note';
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.classList.add('remove-note-btn');
-            removeBtn.title = 'Remove note';
-            removeBtn.innerHTML = '&times;';
-
-            removeBtn.addEventListener('click', () => {
-                noteGroup.classList.add('removing');
-                setTimeout(() => noteGroup.remove(), 500);
-            });
-
-            noteGroup.appendChild(label);
-            noteGroup.appendChild(input);
-            noteGroup.appendChild(removeBtn);
-
-            notesContainer.appendChild(noteGroup);
+            const textarea = document.createElement('textarea');
+            textarea.name = 'notes[]';
+            textarea.placeholder = 'Add note';
+            textarea.rows = 2;
+            textarea.style.marginTop = '10px';
+            textarea.style.resize = 'vertical';
+            notesContainer.appendChild(textarea);
         });
 
-        // Remove note buttons for existing notes
-        notesContainer.querySelectorAll('.remove-note-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const noteGroup = e.target.closest('.note-group');
-                noteGroup.classList.add('removing');
-                setTimeout(() => noteGroup.remove(), 500);
-            });
-        });
-
-        // Clear form and cancel button logic
+        // Cancel button logic
         cancelBtn.addEventListener('click', () => {
             animeForm.reset();
             cancelBtn.classList.add('hidden');
             editingIndex = -1;
-            // Reset notes container to default S1 Note
             notesContainer.innerHTML = '';
-            const noteGroup = document.createElement('div');
-            noteGroup.classList.add('form-group', 'note-group');
-
-            const label = document.createElement('label');
-            label.textContent = 'S1 Note';
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'notes[]';
-            input.placeholder = 'Add note';
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.classList.add('remove-note-btn');
-            removeBtn.title = 'Remove note';
-            removeBtn.innerHTML = '&times;';
-
-            removeBtn.addEventListener('click', () => {
-                noteGroup.classList.add('removing');
-                setTimeout(() => noteGroup.remove(), 500);
-            });
-
-            noteGroup.appendChild(label);
-            noteGroup.appendChild(input);
-            noteGroup.appendChild(removeBtn);
-
-            notesContainer.appendChild(noteGroup);
         });
 
         // Save anime
@@ -770,7 +727,6 @@
             if (isNaN(rating) || rating < 1) rating = 1;
             if (rating > 10) rating = 10;
 
-            // Image file from input
             const imageFile = animeForm.image.files[0];
 
             if (!formData.get('title').trim()) {
@@ -781,7 +737,7 @@
             function saveAnimeWithImage(imageDataUrl) {
                 const newAnime = {
                     title: formData.get('title').trim(),
-                    imageDataUrl: imageDataUrl || '',
+                    imageDataUrl: imageDataUrl || (editingIndex !== -1 ? animeData[editingIndex].imageDataUrl : ''),
                     status: formData.get('status'),
                     rating: rating,
                     description: formData.get('description').trim(),
@@ -798,36 +754,7 @@
                 localStorage.setItem('animeData', JSON.stringify(animeData));
                 animeForm.reset();
                 cancelBtn.classList.add('hidden');
-
-                // Reset notes container to default S1 Note after save
                 notesContainer.innerHTML = '';
-                const noteGroup = document.createElement('div');
-                noteGroup.classList.add('form-group', 'note-group');
-
-                const label = document.createElement('label');
-                label.textContent = 'S1 Note';
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'notes[]';
-                input.placeholder = 'Add note';
-
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.classList.add('remove-note-btn');
-                removeBtn.title = 'Remove note';
-                removeBtn.innerHTML = '&times;';
-
-                removeBtn.addEventListener('click', () => {
-                    noteGroup.classList.add('removing');
-                    setTimeout(() => noteGroup.remove(), 500);
-                });
-
-                noteGroup.appendChild(label);
-                noteGroup.appendChild(input);
-                noteGroup.appendChild(removeBtn);
-
-                notesContainer.appendChild(noteGroup);
 
                 renderAnime(getActiveTab(), searchInput.value);
             }
@@ -872,8 +799,7 @@
             editingIndex = index;
             animeForm.title.value = anime.title;
 
-            // Can't set file input value, so we skip image input when editing
-            // Alternatively, we could clear it
+            // Can't set file input value for security reasons, so clear it
             animeForm.image.value = '';
 
             animeForm.status.value = anime.status;
@@ -883,66 +809,19 @@
             // Clear existing notes inputs
             notesContainer.innerHTML = '';
 
-            // Add existing notes inputs
+            // Add existing notes as separate textareas
             if (anime.notes && anime.notes.length > 0) {
-                anime.notes.forEach((note, i) => {
-                    const noteGroup = document.createElement('div');
-                    noteGroup.classList.add('form-group', 'note-group');
-
-                    const label = document.createElement('label');
-                    label.textContent = `S${i + 1} Note`;
-
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.name = 'notes[]';
-                    input.value = note;
-
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.classList.add('remove-note-btn');
-                    removeBtn.title = 'Remove note';
-                    removeBtn.innerHTML = '&times;';
-
-                    removeBtn.addEventListener('click', () => {
-                        noteGroup.classList.add('removing');
-                        setTimeout(() => noteGroup.remove(), 500);
-                    });
-
-                    noteGroup.appendChild(label);
-                    noteGroup.appendChild(input);
-                    noteGroup.appendChild(removeBtn);
-
-                    notesContainer.appendChild(noteGroup);
+                anime.notes.forEach(note => {
+                    if(note.trim() !== '') {
+                        const textarea = document.createElement('textarea');
+                        textarea.name = 'notes[]';
+                        textarea.rows = 2;
+                        textarea.style.marginTop = '10px';
+                        textarea.style.resize = 'vertical';
+                        textarea.value = note;
+                        notesContainer.appendChild(textarea);
+                    }
                 });
-            } else {
-                // If no notes, add a blank note input with S1 Note label
-                const noteGroup = document.createElement('div');
-                noteGroup.classList.add('form-group', 'note-group');
-
-                const label = document.createElement('label');
-                label.textContent = 'S1 Note';
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'notes[]';
-                input.placeholder = 'Add note';
-
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.classList.add('remove-note-btn');
-                removeBtn.title = 'Remove note';
-                removeBtn.innerHTML = '&times;';
-
-                removeBtn.addEventListener('click', () => {
-                    noteGroup.classList.add('removing');
-                    setTimeout(() => noteGroup.remove(), 500);
-                });
-
-                noteGroup.appendChild(label);
-                noteGroup.appendChild(input);
-                noteGroup.appendChild(removeBtn);
-
-                notesContainer.appendChild(noteGroup);
             }
 
             cancelBtn.classList.remove('hidden');
@@ -966,7 +845,6 @@
 
         // Initial render
         renderAnime();
-
     </script>
 </body>
 </html>
